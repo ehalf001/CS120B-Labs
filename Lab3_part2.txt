@@ -1,0 +1,57 @@
+/* Partner 1 Name & E-mail: Emanuel Halfon ehalf001@ucr.edu
+* Partner 2 Name & E-mail:  Christian Grayson cgray009@ucr.edu
+* Lab Section: 024
+* Assignment: Lab # 3 Exercise # 2
+* Exercise Description: Adding the first bit and the second bit of an input.
+*
+* I acknowledge all content contained herein, excluding template or example
+* code, is my own original work.
+*/
+
+#include <avr/io.h>
+
+unsigned char SetBit(unsigned char x, unsigned char k, unsigned char b) {
+	return (b ? x | (0x01 << k) : x & ~(0x01 << k));
+}
+unsigned char GetBit(unsigned char x, unsigned char k) {
+	return ((x & (0x01 << k)) != 0);
+}
+
+
+int main(void)
+{
+	PORTA = 0x00;
+	PORTC = 0x00;
+	while(1)
+	{
+		unsigned char Pin_A = PINA;
+		if(PINA == 0)
+		{
+			PORTC = 0x40;
+		}
+		else if ( PINA < 3)
+		{
+			PORTC = 0x60;
+		}
+		else if ( PINA < 5)
+		{
+			PORTC = 0x70;
+		}
+		else if ( PINA < 7)
+		{
+			PORTC = 0x38;
+		}
+		else if ( PINA < 10)
+		{
+			PORTC = 0x3C;
+		}
+		else if ( PINA < 13)
+		{
+			PORTC = 0x3E;
+		}
+		else
+		{
+			PORTC = 0x3F;	
+		}
+	}	
+}
