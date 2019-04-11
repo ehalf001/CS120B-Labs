@@ -1,0 +1,99 @@
+/* Partner 1 Name & E-mail: Emanuel Halfon ehalf001@ucr.edu
+* Partner 2 Name & E-mail:  Christian Grayson cgray009@ucr.edu
+* Lab Section: 024
+* Assignment: Lab # 4 Exercise # 1
+* Exercise Description: Adding the first bit and the second bit of an input.
+*
+* I acknowledge all content contained herein, excluding template or example
+* code, is my own original work.
+*/
+
+#include <avr/io.h>
+
+
+#define A0 (PINA & 0x01)
+unsigned char SetBit(unsigned char x, unsigned char k, unsigned char b) {
+	return (b ? x | (0x01 << k) : x & ~(0x01 << k));
+}
+unsigned char GetBit(unsigned char x, unsigned char k) {
+	return ((x & (0x01 << k)) != 0);
+}
+ enum  States {Start, Light_Z, Light_Z_ON, Light_O, Light_O_ON} state;
+
+
+
+int main(void)
+{
+	PORTB = 0x00;
+	state = Start;
+	while(1)
+	{
+
+		switch(state) //Transitions
+		{
+			case Start:
+				state = Light_Z;
+				break;
+			case Light_Z:
+				if(A0)
+				{
+					state = Light_O_ON;
+				}
+				else
+				{
+					state = Light_Z;
+				}
+				break;
+			case Light_O_ON:
+				if(!A0)
+				{
+					state = Light_O;
+				}
+				else
+				{
+					state = Light_O_ON;
+				}
+				break;
+			case Light_O:
+				if(A0)
+				{
+					state = Light_Z_ON;
+				}
+				else
+				{
+					state = Light_O;
+				}
+				break;
+			case Light_Z_ON:
+				if(!A0)
+				{
+					state = Light_Z;
+				}
+				else
+				{
+					state = Light_Z_ON;
+				}
+				break;
+			default:
+				state = Light_Z;
+		}
+
+		switch(state) //Actions
+		{
+			case Light_Z:
+				PORTB = 0x01;
+				break;
+			case Light_O_ON:
+				PORTB = 0x02;
+				break;
+			case Light_O:
+				PORTB = 0x02;
+				break;
+			case Light_Z_ON:
+				PORTB = 0x01;
+				break;
+			default:
+				PORTB = 0x01;
+		}
+	}	
+}

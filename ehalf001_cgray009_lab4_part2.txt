@@ -1,0 +1,100 @@
+/* Partner 1 Name & E-mail: Emanuel Halfon ehalf001@ucr.edu
+* Partner 2 Name & E-mail:  Christian Grayson cgray009@ucr.edu
+* Lab Section: 024
+* Assignment: Lab # 4 Exercise # 2
+* Exercise Description: Adding the first bit and the second bit of an input.
+*
+* I acknowledge all content contained herein, excluding template or example
+* code, is my own original work.
+*/
+
+#include <avr/io.h>
+
+
+#define A0 (PINA & 0x01)
+#define A1 ((PINA >> 1 ) & 0x01)
+unsigned char SetBit(unsigned char x, unsigned char k, unsigned char b) {
+	return (b ? x | (0x01 << k) : x & ~(0x01 << k));
+}
+unsigned char GetBit(unsigned char x, unsigned char k) {
+	return ((x & (0x01 << k)) != 0);
+}
+ enum  States {Start, Inter, Incre, Incre_ON, Decre, Decre_ON} state;
+
+
+
+int main(void)
+{
+	PORTC = 0x07;
+	state = Start;
+	while(1)
+	{
+
+		switch(state) //Transitions
+		{
+			case Start:
+				state = Inter;
+				break;
+			case Inter:
+				if(A0 == A1)
+				{
+					state = Inter;
+				}
+				else if(A0)
+				{
+					state = Incre_ON;
+				}
+				else 
+				{
+					state = Decre_ON;
+				}
+				break;
+			case Incre:
+				state = Inter;
+				break;
+			case Incre_ON:
+				if(!A0)
+				{
+					state = Incre;
+				}
+				else
+				{
+					state = Incre_ON;
+				}
+				break;
+			case Decre:
+				state = Inter;
+				break;
+			case Decre_ON:
+				if(!A1)
+				{
+					state = Decre;
+				}
+				else
+				{
+					state = Decre_ON;
+				}
+				break;
+			default:
+				state = Inter;
+		}
+
+		switch(state) //Actions
+		{
+			case Incre:
+				if(PORTC < 9)
+				{
+					PORTC = PORTC + 0x01;
+				}
+				break;
+			case Decre:
+				if(PORTC > 0)
+				{
+					PORTC = PORTC - 0x01;
+				}
+				break;
+			default:
+				PORTC = PORTC;
+		}
+	}	
+}
