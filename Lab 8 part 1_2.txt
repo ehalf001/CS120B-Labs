@@ -1,0 +1,50 @@
+/* Partner 1 Name & E-mail: Emanuel Halfon ehalf001@ucr.edu
+* Partner 2 Name & E-mail:  Christian Grayson cgray009@ucr.edu
+* Lab Section: 024
+* Assignment: Lab # 8 Exercise # 1/2
+* Exercise Description: Adding the first bit and the second bit of an input.
+*
+* I acknowledge all content contained herein, excluding template or example
+* code, is my own original work.
+*/
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+void ADC_init() {
+	ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
+	// ADEN: setting this bit enables analog-to-digital conversion.
+	// ADSC: setting this bit starts the first conversion.
+	// ADATE: setting this bit enables auto-triggering. Since we are
+	//        in Free Running Mode, a new conversion will trigger whenever
+  //        the previous conversion completes.
+  }
+
+int main(void)
+{
+	DDRB = 0xFF; // Set port B to output
+	PORTB = 0x00; // Init port B to 0s
+	DDRD = 0xFF;
+	PORTD = 0x00;
+	PORTA = 0xFF;
+	DDRA = 0x00;
+	ADC_init();
+	int i;
+	while(1) {
+		unsigned char port_B = 0x00;
+		unsigned char port_D = 0x00;
+		unsigned short x = ADC;  // Value of ADC register now stored in variable x.
+		for(i = 0; i < 10; i++)
+		{
+			if(i < 8)
+			{
+				port_B += (char)(x & (0x0001 << i));
+			}
+			else
+			{
+				port_D += (char)((x & (0x0001 << i)) >> 8);
+			}
+		}
+		PORTB = port_B;
+		PORTD = port_D;
+	}
+}
