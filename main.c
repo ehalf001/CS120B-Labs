@@ -10,7 +10,10 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "io.c"
+#include <stdlib.h> 
+#include "ucr/keypad.h"
+#include "ucr/io.c"
+#include <stdio.h>
 
 #define A0 (~PINA & 0x01)
 #define A1 ((~PINA >> 1) & 0x01)
@@ -21,13 +24,48 @@ volatile unsigned char port_B = 0x00;
 // Internal variables for mapping AVR's ISR to our cleaner TimerISR model.
 unsigned long _avr_timer_M = 1; // Start count from here, down to 0. Default 1 ms.
 unsigned long _avr_timer_cntcurr = 0; // Current internal count of 1ms ticks
+volatile unsigned short randomValues;
 
-const unsigned long PERIOD = 2;
+const unsigned long PERIOD = 10;
 
-unsigned char SetBit(unsigned char x, unsigned char k, unsigned char b) {
-	return (b ? x | (0x01 << k) : x & ~(0x01 << k));
+int randomNumGen(int state)
+{
+	static unsigned char randVals = 0x01;
+	randVals += randVals;
+	randomValues = randVals;
+	return state;	
 }
 
+
+
+unsigned char DisplayVal(void)
+{
+	unsigned char port_B;
+	unsigned char x;
+	x = GetKeypadKey();
+	switch (x)
+	{
+		case '\0': port_B = 'L'; break; // All 5 LEDs on
+		case '0':  port_B = '0'; break;
+		case '1':  port_B = '1'; break; // hex equivalent
+		case '2':  port_B = '2'; break;
+		case '3':  port_B = '3'; break;
+		case '4':  port_B = '4'; break;
+		case '5':  port_B = '5'; break;
+		case '6':  port_B = '6'; break;
+		case '7':  port_B = '7'; break;
+		case '8':  port_B = '8'; break;
+		case '9':  port_B = '9'; break;
+		case 'A':  port_B = 'A'; break;
+		case 'B':  port_B = 'B'; break;
+		case 'C':  port_B = 'C'; break;
+		case 'D':  port_B = 'D'; break;
+		case '*':  port_B = '*'; break;
+		case '#':  port_B = '#'; break;
+		default:   port_B = 'H'; break; // Should never occur. Middle LED off.
+	}
+	return port_B;
+}
 
 
 void TimerOn() {
@@ -49,132 +87,73 @@ void TimerOff() {
 }
 
 
- typedef struct Task {
+typedef struct Task {
 	int state; // Task’s current state
 	unsigned long period; // Task period
 	unsigned long elapsedTime; // Time elapsed since last task tick
 	int (*TickFct)(int); // Task tick function
 } task;
 
-const unsigned char tasksSize = 3;
-task tasks[3];
-enum BL_States { BL_SMStart, BL_LEDOff, BL_LEDOn};
-enum TL_States{ TL_SMStart, TL_Seq0, TL_Seq1, TL_Seq2 };
-enum TS_States { TS_SMStart, TS_Off, TS_On};
-int TickFct_BlinkLED(int state)
+const unsigned char tasksSize = 2;
+task tasks[2];
+
+enum MenuStates {Start, Menu, Game_Start};
+
+int TickMenu(int state)
 {
+	unsigned char x;
+	unsigned char* string = "1.Start";
+	unsigned char c = 17;
+	static unsigned char j = 0x00;
+	unsigned char randVals[3];
 	switch(state)
 	{
-		case BL_SMStart:
-		state = BL_LEDOff;
-		break;
-		case BL_LEDOff:
-		state = BL_LEDOn;
-		break;
-		case BL_LEDOn:
-		state = BL_LEDOff;
-		break;
-		default:
-		state = BL_LEDOff;
-		break;
-
-	}
-	switch(state)
-	{
-		case BL_LEDOff:
-		port_B = SetBit(port_B, 0, 0);
-		break;
-		case BL_LEDOn:
-		port_B = SetBit(port_B, 0, 1);
-
-		break;
-
-	}
-	return state;
-}
-int TickFct_ThreeLED(int state)
-{
-	switch(state)
-	{
-		case TL_SMStart:
-		state = TL_Seq0;
-		break;
-		case TL_Seq0:
-		state = TL_Seq1;
-		break;
-		case TL_Seq1:
-		state = TL_Seq2;
-		break;
-		case TL_Seq2:
-		state = TL_Seq0;
-		break;
-		default:
-		state = TL_Seq0;
-		break;
-
-	}
-	switch(state)
-	{
-		case TL_Seq0:
-		port_B = SetBit(port_B, 1, 1);
-		port_B = SetBit(port_B, 2, 0);
-		port_B = SetBit(port_B, 3, 0);
-		break;
-		case TL_Seq1:
-		port_B = SetBit(port_B, 1, 0);
-		port_B = SetBit(port_B, 2, 1);
-		port_B = SetBit(port_B, 3, 0);
-		break;
-		case TL_Seq2:
-		port_B = SetBit(port_B, 1, 0);
-		port_B = SetBit(port_B, 2, 0);
-		port_B = SetBit(port_B, 3, 1);
-		break;
-
-	}
-	return state;
-}
-
-int TickFct_ToggleSpeaker(int state)
-{
-	switch(state)
-	{
-		case TS_SMStart:
-			state = TS_Off;
-			break;
-		case TS_Off:
-			state = TS_On;
-			break;
-		case TS_On:
-			state = TS_Off;
-			break;
-		default:
-			state = TS_Off;
-			break;
-
-	}
-	switch(state)
-	{
-		case TS_Off :
-			port_B = SetBit(port_B, 4, 0);
-			break;
-		case TS_On:
-			if(A2 == 1)
+		case Start:
+			LCD_DisplayString(6, " Menu");
+			while(*string)
 			{
-				port_B = SetBit(port_B, 4, 1);
+				LCD_Cursor(c++);
+				LCD_WriteData(*string++);
+			}
+			state = Menu;
+			break;
+		case Menu:
+			x = GetKeypadKey();
+			if(x == '1')
+			{
+				state = Game_Start;
+				break;
 			}
 			else
 			{
-				port_B = SetBit(port_B, 4, 0);
+				state = Menu;
 			}
 			break;
+		case Game_Start:
+			state = Game_Start;
+			break;
 		default:
-			port_B = SetBit(port_B, 4, 0);
+			state = Menu;
+	}
+	switch(state)
+	{
+		case Game_Start:
+		if(j < 3)
+		{
+			randVals[j] = randomValues % 5;
+			PORTB = randVals;
+			j++;
+		}
+		else
+		{
+			j = 0x00;
+		}	
+		LCD_DisplayString(1, "Loading");
 		break;
-
 	}
 	return state;
 }
+
 
 void TimerISR()
 {
@@ -209,24 +188,26 @@ void TimerSet(unsigned long M) {
 int main(void)
 {
 	DDRB = 0xFF; PORTB = 0x00;
-	DDRA = 0x00; PORTA = 0xFF;
+	DDRA = 0xF0; PORTA = 0x0F;
+	DDRC = 0xFF; PORTC = 0x00;
+	DDRD = 0xFF; PORTD = 0x00;
 	unsigned char i = 0;
-	tasks[i].state = BL_SMStart;
+	tasks[i].state = Start;
 	tasks[i].period = 1000;
 	tasks[i].elapsedTime = 0;
-	tasks[i].TickFct = &TickFct_BlinkLED;
+	tasks[i].TickFct = &TickMenu;
 	i++;
-	tasks[i].state = TL_SMStart;
-	tasks[i].period = 300;
+	tasks[i].state = Menu;
+	tasks[i].period = 10;
 	tasks[i].elapsedTime = 0;
-	tasks[i].TickFct = &TickFct_ThreeLED;
-	i++;
-	tasks[i].state = TS_SMStart;
-	tasks[i].period = 2;
-	tasks[i].elapsedTime = 0;
-	tasks[i].TickFct = &TickFct_ToggleSpeaker;
+	tasks[i].TickFct = &randomNumGen;
 	TimerSet(PERIOD);
 	TimerOn();
-	while(1) { PORTB = port_B; }
+	LCD_init();
+	LCD_ClearScreen();
+	while(1) 
+	{
+		continue;
+	}
 	return 0;
 }
